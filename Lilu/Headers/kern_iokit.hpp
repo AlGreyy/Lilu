@@ -137,10 +137,11 @@ namespace WIOKit {
 	 */
 	struct VendorID {
 		enum : uint16_t {
-			ATIAMD = 0x1002,
-			AMDZEN = 0x1022,
-			NVIDIA = 0x10de,
-			Intel = 0x8086
+            ATIAMD = 0x1002,
+            AMDZEN = 0x1022,
+            NVIDIA = 0x10DE,
+            Intel  = 0x8086,
+            VMware = 0x15AD
 		};
 	};
 

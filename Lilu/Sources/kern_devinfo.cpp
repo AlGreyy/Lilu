@@ -231,7 +231,9 @@ void DeviceInfo::grabDevicesFromPciRoot(IORegistryEntry *pciRoot) {
 			// Strip interface, as we only care about class and subclass
 			code &= WIOKit::ClassCode::PCISubclassMask;
 
-			if (!gotVendor || !gotClass || (vendor != WIOKit::VendorID::Intel && vendor != WIOKit::VendorID::ATIAMD && vendor != WIOKit::VendorID::AMDZEN))
+
+			if (!gotVendor || !gotClass || (vendor != WIOKit::VendorID::Intel && vendor != WIOKit::VendorID::ATIAMD &&
+			                                vendor != WIOKit::VendorID::AMDZEN && vendor != WIOKit::VendorID::VMware))
 				continue;
 
 			if (vendor == WIOKit::VendorID::Intel && (code == WIOKit::ClassCode::DisplayController || code == WIOKit::ClassCode::VGAController)) {
@@ -274,12 +276,8 @@ void DeviceInfo::grabDevicesFromPciRoot(IORegistryEntry *pciRoot) {
 								v.vendor = pcivendor;
 							} else if (pcicode == WIOKit::ClassCode::HDADevice) {
 
-								if (pcivendor == WIOKit::VendorID::AMDZEN) {
-									DBGLOG("dev", "found HDEF (Zen Platform) device %s at %s by %04X", safeString(pciobj->getName()), safeString(name), pcivendor);
-									audioBuiltinAnalog = pciobj;
-//									
-								} else {
-								DBGLOG("dev", "found HDAU device %s at %s by %04X",
+								DBGLOG("dev", "found audio device %s at %s by %04X",
+
 									   safeString(pciobj->getName()), safeString(name), pcivendor);
 								v.audio = pciobj;
 
@@ -290,8 +288,17 @@ void DeviceInfo::grabDevicesFromPciRoot(IORegistryEntry *pciRoot) {
 
 					pciiterator->release();
 
-					if (v.video && !videoExternal.push_back(v))
-						SYSLOG("dev", "failed to push video gpu");
+					if (v.video) {
+						DBGLOG_COND(v.audio, "dev", "marking audio device as HDAU at %s", safeString(v.audio->getName()));
+						if (!videoExternal.push_back(v))
+							SYSLOG("dev", "failed to push video gpu");
+					} else if (v.audio && !audioBuiltinAnalog) {
+						// On modern AMD platforms or VMware built-in audio devices sits on a PCI bridge just any other device.
+						// On AMD it has a distinct Ryzen device-id for the time being, yet on VMware it is just Intel.
+						// To distinguish the devices we use audio card presence as a marker.
+						DBGLOG("dev", "marking audio device as HDEF at %s", safeString(v.audio->getName()));
+						audioBuiltinAnalog = v.audio;
+					}
 				}
 			}
 		}
